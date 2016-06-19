@@ -1,13 +1,17 @@
-let length xs = 0
+let rec fold ~init ~f xs = match xs with
+  | [] -> init
+  | x::xs -> fold ~init:(f init x) ~f:f xs
 
-let reverse xs = xs
+let flipped_cons xs x = x :: xs
 
-let map ~f xs = failwith "undefined"
+let length xs = fold ~init:0 ~f:(fun len _ -> len + 1) xs
 
-let filter ~f xs = xs
+let reverse xs = fold ~init:[] ~f:flipped_cons xs
 
-let fold ~init ~f xs = failwith "undefined"
+let map ~f xs = fold ~init:[] ~f:(fun xs x -> (f x)::xs) xs |> reverse
 
-let append xs ys = xs
+let filter ~f xs = fold ~init:[] ~f:(fun xs x -> if f x then x::xs else xs) xs |> reverse
 
-let concat xss = failwith "undefined"
+let append xs ys = fold ~init:ys ~f:flipped_cons (reverse xs)
+
+let concat xss = fold ~init:[] ~f:(fun acc x -> append x acc) (reverse xss)
