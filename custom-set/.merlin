@@ -1,0 +1,4 @@
+PKG core_kernel
+PKG core
+PKG core_extended
+PKG oUnit

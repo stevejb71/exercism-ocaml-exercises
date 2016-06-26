@@ -26,18 +26,18 @@ module Make(S: Spec) = struct
     | Empty -> true
     | _ -> false
 
-  let rec fold (node: 'b -> S.t -> 'b -> 'b) (z: 'b) (xs: S.t tree): 'b = match xs with
-    | Empty -> z
-    | Node (l, x, r) -> node (fold node z l) x (fold node z r)
-
   let rec equal xs ys = match (xs, ys) with
     | (Empty, Empty) -> true
+    | (Empty, Node(_, _, _)) -> false
+    | (Node(_, _, _), Empty) -> false
     | (Node (l1, x1, r1), Node (l2, x2, r2))
       -> S.equal x1 x2 && equal l1 l2 && equal r1 r2
-    | _ -> false
+    (* | _ -> false *)
 
   let compare xs ys = match (xs, ys) with
     | (Empty, Empty) -> 0
+    | (Empty, Node(_, _, _)) -> 1
+    | (Node(_, _, _), Empty) -> (-1)
     | (Node (xl, x, xr), Node (yl, y, yr)) -> match S.compare x y with
       | n when n < 0 -> -1
       | n when n > 0 -> 1
@@ -46,9 +46,9 @@ module Make(S: Spec) = struct
         | 0 -> 0
         | n when n > 0 -> 1
 
-  let to_list xs =
-    let node l n r = l @ (n :: r)
-    in fold node [] xs
+  let rec to_list xs = match xs with
+    | Empty -> []
+    | Node (l, x, r) -> to_list l @ (x :: (to_list r))
 
   let to_string xs =
     let contents = List.map (to_list xs) S.to_string |> String.concat ~sep:" "
