@@ -1,6 +1,6 @@
 let rec fold ~init ~f xs = match xs with
   | [] -> init
-  | x::xs -> fold ~init:(f init x) ~f:f xs
+  | x::xs -> fold ~init:(f init x) ~f xs
 
 let flipped_cons xs x = x :: xs
 

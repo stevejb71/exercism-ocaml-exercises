@@ -14,69 +14,52 @@ module IntSpec = struct
   let to_string = Int.to_string
 end
 
-type 'a tree = Empty | Node of 'a tree * 'a * 'a tree
-
 module Make(S: Spec) = struct
   type elt_type = S.t
-  type t = S.t tree
+  type t = S.t list
 
-  let empty = Empty
+  let empty = []
 
-  let is_empty = function
-    | Empty -> true
-    | _ -> false
+  let equal =
+    let rec stack_safe acc xs ys =
+      acc && match (xs, ys) with
+      | ([], _) -> List.is_empty ys
+      | (_, []) -> List.is_empty xs
+      | (x::xs, y::ys) -> stack_safe (S.equal x y) xs ys
+    in stack_safe true
 
-  let rec equal xs ys = match (xs, ys) with
-    | (Empty, Empty) -> true
-    | (Empty, Node(_, _, _)) -> false
-    | (Node(_, _, _), Empty) -> false
-    | (Node (l1, x1, r1), Node (l2, x2, r2))
-      -> S.equal x1 x2 && equal l1 l2 && equal r1 r2
-    (* | _ -> false *)
+  let compare xs ys = 0
 
-  let compare xs ys = match (xs, ys) with
-    | (Empty, Empty) -> 0
-    | (Empty, Node(_, _, _)) -> 1
-    | (Node(_, _, _), Empty) -> (-1)
-    | (Node (xl, x, xr), Node (yl, y, yr)) -> match S.compare x y with
-      | n when n < 0 -> -1
-      | n when n > 0 -> 1
-      | 0 -> match compare xl yl with
-        | n when n < 0 -> compare xr yr
-        | 0 -> 0
-        | n when n > 0 -> 1
-
-  let rec to_list xs = match xs with
-    | Empty -> []
-    | Node (l, x, r) -> to_list l @ (x :: (to_list r))
+  let rec to_list xs = xs
 
   let to_string xs =
-    let contents = List.map (to_list xs) S.to_string |> String.concat ~sep:" "
+    let contents = List.map xs S.to_string |> String.concat ~sep:" "
     in "{" ^ contents ^ "}"
 
-  let rec add xs n = match xs with
-    | Empty -> Node (Empty, n, Empty)
-    | Node (l, m, r) -> match S.compare m n with
-      | x when x > 0 -> Node ((add l n), m, r)
-      | x when x < 0 -> Node (l, m, (add r n))
-      | 0 -> Node (l, m, r)
+  let add xs n =
+    let rec stack_safe acc xs = match xs with
+      | [] -> n::acc
+      | hd::tl -> match S.compare n hd with
+        | 0 -> xs
+        | r when r > 0 -> (hd::n::tl) @ acc
+        | _ -> stack_safe (hd::acc) tl
+    in stack_safe [] xs |> List.rev
 
-  let of_list xs = List.fold ~init:empty ~f:add xs
-
-  let rec member (xs: t) (n: elt_type): bool = match xs with
-    | Empty -> false
-    | Node (l, x, r) -> match S.compare n x with
-      | x when x < 0 -> member l n
-      | x when x > 0 -> member r n
-      | 0 -> true
+  let of_list xs = List.fold ~init:empty ~f:add xs |> List.rev
 
   let difference xs ys =
-    List.filter (to_list xs) ~f:(fun x -> (member ys x |> not)) |> of_list
+    List.filter (to_list xs) ~f:(fun x -> (List.mem ~equal:(S.equal) ys x |> not)) |> of_list
 
-  let remove xs n = difference xs (Node (Empty, n, Empty))
+  let remove xs n = List.filter xs ~f:((<>) n)
 
   let intersect xs ys = difference xs (difference xs ys)
 
   let union xs ys =
     List.fold (to_list ys) ~init:xs ~f:(fun acc y -> add acc y)
 end
+
+module I = Make(IntSpec)
+let x3 = I.add (I.empty) 3
+let x33 = I.add x3 3
+let x34 = I.add x3 4
+let x344 = I.add x34 4
