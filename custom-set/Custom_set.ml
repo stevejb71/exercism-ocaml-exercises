@@ -1,65 +1,78 @@
 open Core.Std
 
-module type Spec = sig
+module type ELEMENT = sig
   type t
-  val compare: t -> t -> int
-  val equal: t -> t -> bool
-  val to_string: t -> string
+  val compare : t -> t -> int
+  val equal : t -> t -> bool
+  val to_string : t -> string
 end
 
-module IntSpec = struct
-  type t = int
-  let compare = Int.compare
-  let equal n m = n = m
-  let to_string = Int.to_string
-end
+module Make(El: ELEMENT) = struct
+  (* Not terribly efficient, but good enough for this example.
+   *
+   * The list is kept sorted at all times. *)
+  type t = El.t list
 
-module Make(S: Spec) = struct
-  type elt_type = S.t
-  type t = S.t list
+  type el = El.t
+
+  let is_empty = List.is_empty
+
+  let rec is_member l n = List.find l ~f:(El.equal n) |> Option.is_some
+
+  let equal a b = List.equal a b ~equal:El.equal
+
+  let to_string l =
+    let rec print_els = function
+      | (h1::h2::t) -> El.to_string h1 ^ " " ^ print_els (h2::t)
+      | (h1::t) -> El.to_string h1 ^ print_els t
+      | [] -> "" in
+    "{" ^ print_els l ^ "}"
 
   let empty = []
 
-  let equal =
-    let rec stack_safe acc xs ys =
-      acc && match (xs, ys) with
-      | ([], _) -> List.is_empty ys
-      | (_, []) -> List.is_empty xs
-      | (x::xs, y::ys) -> stack_safe (S.equal x y) xs ys
-    in stack_safe true
+  let of_list l = List.dedup ~compare:El.compare l |> List.sort ~cmp:El.compare
 
-  let compare xs ys = 0
+  let to_list l = l
 
-  let rec to_list xs = xs
+  let add l x =
+    let rec go acc = function
+      | h :: t ->
+        let r = El.compare x h in
+        if r = 0 then l (* element already in the set *)
+        else if r < 0 then List.rev_append acc (x :: h :: t)
+        else go (h::acc) t
+      | [] -> List.rev (x::acc)
+    in go [] l
 
-  let to_string xs =
-    let contents = List.map xs S.to_string |> String.concat ~sep:" "
-    in "{" ^ contents ^ "}"
+  let remove l x =
+    let rec go acc = function
+      | h :: t ->
+        let r = El.compare x h in
+        if r = 0 then List.rev_append acc t
+        else if r < 0 then l
+        else go (h::acc) t
+      | [] -> l
+    in go [] l
 
-  let add xs n =
-    let rec stack_safe acc xs = match xs with
-      | [] -> n::acc
-      | hd::tl -> match S.compare n hd with
-        | 0 -> xs
-        | r when r > 0 -> (hd::n::tl) @ acc
-        | _ -> stack_safe (hd::acc) tl
-    in stack_safe [] xs |> List.rev
+  type status = [
+    | `OnlyA
+    | `OnlyB
+    | `Both
+  ]
 
-  let of_list xs = List.fold ~init:empty ~f:add xs |> List.rev
+  let diff_filter (f : status -> bool) l1 l2 =
+    let rec go acc = function
+      | [], [] -> List.rev acc
+      | (h1::t1), [] -> go (if f `OnlyA then h1::acc else acc) (t1, [])
+      | [], (h2::t2) -> go (if f `OnlyB then h2::acc else acc) ([], t2)
+      | (h1::t1), (h2::t2) ->
+        let r = El.compare h1 h2 in
+        if r == 0 then go (if f `Both then h1::acc else acc) (t1, t2)
+        else if r < 0 then go (if f `OnlyA then h1::acc else acc) (t1, h2::t2)
+        else go (if f `OnlyB then h2::acc else acc) (h1::t1, t2)
+    in go [] (l1, l2)
 
-  let difference xs ys =
-    List.filter (to_list xs) ~f:(fun x -> (List.mem ~equal:(S.equal) ys x |> not)) |> of_list
-
-  let remove xs n = List.filter xs ~f:((<>) n)
-
-  let intersect xs ys = difference xs (difference xs ys)
-
-  let union xs ys =
-    List.fold (to_list ys) ~init:xs ~f:(fun acc y -> add acc y)
+  let difference = diff_filter (function `OnlyA -> true | _ -> false)
+  let intersect = diff_filter (function `Both -> true | _ -> false)
+  let union = diff_filter (fun _ -> true)
 end
-
-module I = Make(IntSpec)
-let x3 = I.add (I.empty) 3
-let x33 = I.add x3 3
-let x34 = I.add x3 4
-let x344 = I.add x34 4

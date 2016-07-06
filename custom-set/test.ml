@@ -4,7 +4,8 @@ module type EXPECTED = sig
   type t
   val empty : t
   val equal : t -> t -> bool
-  val compare : t -> t -> int
+  val is_empty : t -> bool
+  val is_member : t -> int -> bool
   val to_string : t -> string
   val of_list : int list -> t
   val to_list : t -> int list
@@ -37,22 +38,35 @@ let int_list_printer l =
 let ae_set exp got _test_ctxt = assert_equal ~cmp:CSet.equal ~printer:CSet.to_string exp got
 let ae_list exp got _test_ctxt = assert_equal ~cmp:int_list_eq ~printer:int_list_printer exp got
 let ae_repr exp set _test_ctxt = assert_equal ~cmp:(=) ~printer:(fun x -> x) exp (CSet.to_string set)
+let assert_true exp _text_ctxt = assert_equal exp true
+let assert_false exp _text_ctxt = assert_equal exp false
 let assert_not_equal exp got _test_ctxt = assert_equal ~cmp:(fun x y -> (CSet.equal x y) |> not) exp got
-let assert_eq exp got _test_ctxt = assert_equal ~cmp:(=) exp got
 
 let tests = [
   "empty">::
   ae_repr "{}" (CSet.empty);
+  "is_empty true on the empty set">::
+  assert_true (CSet.is_empty CSet.empty);
+  "is_empty false on a non-empty set">::
+  assert_false (CSet.is_empty (CSet.of_list [1]));
+  "is_empty true on a set created from an empty list">::
+  assert_true (CSet.is_empty (CSet.of_list []));
   "empty = empty">::
   ae_set (CSet.empty) (CSet.empty);
   "empty != non-empty">::
-  assert_not_equal CSet.empty (CSet.add (CSet.empty) 7);
+  assert_not_equal CSet.empty (CSet.of_list [2]);
   "non-empty != empty">::
-  assert_not_equal (CSet.add (CSet.empty) 7) CSet.empty;
+  assert_not_equal (CSet.of_list [2]) CSet.empty;
   "equal - different non-empty sets">::
-  assert_not_equal (CSet.add (CSet.empty) 7) (CSet.add (CSet.empty) 8);
+  assert_not_equal (CSet.of_list [2]) (CSet.of_list [3]);
   "equal - equal non-empty sets">::
-  ae_set (CSet.add (CSet.empty) 7) (CSet.add (CSet.empty) 7);
+  ae_set (CSet.of_list [2]) (CSet.of_list [2]);
+  "is_member false on the empty set">::
+  assert_false (CSet.is_member CSet.empty 3);
+  "is_member false if not a member">::
+  assert_false (CSet.is_member (CSet.of_list [1;2;5]) 3);
+  "is_member true if a member">::
+  assert_true (CSet.is_member (CSet.of_list [1;3;5]) 3);
   "of_list - no duplicates">::
   ae_repr "{1 2 3}" (CSet.of_list [2;3;1]);
   "of_list - duplicates">::
@@ -71,18 +85,6 @@ let tests = [
   ae_repr "{1 4}" (CSet.remove (CSet.of_list [1;4]) 3);
   "remove from empty set">::
   ae_repr "{}" (CSet.remove CSet.empty 3);
-  "compare Empty with Empty should give 0">::
-  assert_eq 0 (CSet.compare CSet.empty CSet.empty);
-  "compare Empty with Node should give 1">::
-  assert_eq 1 (CSet.compare CSet.empty (CSet.of_list [1]));
-  "compare Node with Empty should give -1">::
-  assert_eq (-1) (CSet.compare (CSet.of_list [1]) CSet.empty);
-  "compare Nodes when left is less than right">::
-  assert_eq (-1) (CSet.compare (CSet.of_list [2;3;4]) (CSet.of_list [3;4;5]));
-  "compare Nodes when left is more than right">::
-  assert_eq 1 (CSet.compare (CSet.of_list [2;3;5]) (CSet.of_list [2;3;4]));
-  "compare Nodes when left is equal to right">::
-  assert_eq 0 (CSet.compare (CSet.of_list [2;3;4;5]) (CSet.of_list [2;3;4;5]));
   "custom compare">::
   ae_list [1; 2; 3]
     (List.map (fun x -> x mod 10) (CSet.to_list
