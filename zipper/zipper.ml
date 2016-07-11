@@ -1,40 +1,24 @@
-(** Zipper exercise interface *)
 open Core.Std
-open Sexplib.Conv
 
-(** The type of a zipper *)
-type 'a t = {foo: 'a} [@@deriving sexp]
+type 'a crumb = L of ('a * ('a Tree.t) option) | R of ('a * ('a Tree.t) option) [@@deriving sexp]
+type 'a t = {tree: 'a Tree.t; crumbs: ('a crumb) list} [@@deriving sexp]
 
-let equal a x y = true
+let equal f a b = false
 
-(*
-(* Sexp converters are also required. *)
-val t_of_sexp : (Sexp.t -> 'a) -> Sexp.t -> 'a t
-val sexp_of_t : ('a -> Sexp.t) -> 'a t -> Sexp.t
+let of_tree t = failwith "undefined"
 
-(** Create a zipper focussed on the root node. *)
-val of_tree : 'a Tree.t -> 'a t
+let to_tree z = failwith "undefined"
 
-(** Get the complete tree from a zipper. *)
-val to_tree : 'a t -> 'a Tree.t
+let value z = failwith "undefined"
 
-(** Get the value of the focus node. *)
-val value : 'a t -> 'a
+let left z = None
 
-(** Get the left child of the focus node, if any. *)
-val left : 'a t -> 'a t option
+let right z = None
 
-(** Get the right child of the focus node, if any. *)
-val right : 'a t -> 'a t option
+let up z = None
 
-(** Get the parent of the focus node, if any. *)
-val up : 'a t -> 'a t option
+let set_value v z = z
 
-(** Set the value of the focus node. *)
-val set_value : 'a -> 'a t -> 'a t
+let set_left ot z = z
 
-(** Set the left child tree of the focus node. *)
-val set_left : 'a Tree.t option -> 'a t -> 'a t
-
-(** Set the right child tree of the focus node. *)
-val set_right : 'a Tree.t option -> 'a t -> 'a t *)
+let set_right ot z = z
