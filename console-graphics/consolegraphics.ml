@@ -1,17 +1,44 @@
 open Core.Std
 
-type board = {width: int; cells: char array}
+class board ~width ~height = object(self)
+  val cells = Array.create ~len:(width * height) '.'
 
-let new_board width height = {width; cells = Array.create (width * height) ' '}
+  method to_string = Array.to_list cells |> String.of_char_list
 
-let draw_point {width; cells} x y =
-  let index = y * width + x in
-  Array.set cells index '*'
+  method set_matching_points f =
+    for y = 0 to height - 1 do
+      for x = 0 to width - 1  do
+        if f x y then self#draw_point x y
+      done
+    done
 
-class rectangle w h = object
-  method draw (b: board) = ()
+  method private draw_point x y =
+    let index = y * width + x in
+    Array.set cells index '*'
 end
 
-class circle r = object
-  method draw (b: board) = ()
+class virtual shape = object
+  method virtual draw: board -> unit
 end
+
+class rectangle ~top_left:(x, y) ~width ~height = object
+  inherit shape
+
+  method draw (b: board) =
+    b#set_matching_points (fun px py ->
+      ((py = y || py = y + height - 1) && (x <= px && px < x + width)) ||
+      ((px = x || px = x + width  - 1) && (y <= py && py < y + height))
+    )
+end
+
+class circle ~centre:(x, y) ~radius = object
+  inherit shape
+
+  method draw (b: board) =
+    b#set_matching_points (fun px py ->
+      let d = (px - x) * (px - x) + (py - y) * (py - y) in
+      d - radius * radius > (-2)  && d - radius * radius < 2
+    )
+end
+
+let draw_shapes b shapes = List.iter shapes ~f:(fun s -> s#draw b)
