@@ -1,0 +1,6 @@
+PKG findlib
+PKG core
+PKG ounit
+PKG ppx_sexp_message
+S *
+B *
